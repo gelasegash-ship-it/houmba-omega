@@ -62,33 +62,4 @@
     <!-- PAIEMENT -->
     <a href="https://wa.me/242068078227?text=Bonjour+HOUMBA.+Je+commande+le+PACK+25.000+FCFA+par+MTN+MONEY"><button class="btn">1. PAYER PAR MTN MONEY</button></a>
     <a href="https://wa.me/242068078227?text=Bonjour+HOUMBA.+Je+commande+le+PACK+25.000+FCFA+par+AIRTEL+MONEY"><button class="btn">2. PAYER PAR AIRTEL MONEY</button></a>
-    <a href="https://www.paypal.com/ncp/payment/gelasegash@gmail.com" target="_blank"><button class="btn">3. PAYER PAR PAYPAL - 42 USD</button></a>
-
-    <!-- PANEL ADMIN -->
-    <div class="admin">
-        <h3>🔒 PANEL ADMIN - ACCÈS: HOUMBA242</h3>
-        <div class="stat">Ventes: <span id="ventes">0</span></div>
-        <div class="stat">CA: <span id="ca">0</span> FCFA</div>
-        <div class="stat">Niveau IA: <span id="niveau">1</span></div>
-        <br>
-        <button class="btn" onclick="evoluer()" style="width: 95%;">🧬 FAIRE ÉVOLUER L'IA</button>
-    </div>
-</div>
-
-<script>
-let data = JSON.parse(localStorage.getItem("houmba_pay")) || {ventes:0, niveau:1};
-function evoluer(){
-    data.niveau++;
-    alert(`🧬 ÉVOLUTION RÉUSSIE ! HOUMBA NIVEAU ${data.niveau}\n+20% de puissance de vente débloquée.`);
-    localStorage.setItem("houmba_pay", JSON.stringify(data));
-    maj();
-}
-function maj(){
-    document.getElementById("ventes").innerText = data.ventes;
-    document.getElementById("ca").innerText = data.ventes * 25000;
-    document.getElementById("niveau").innerText = data.niveau;
-}
-maj();
-</script>
-</body>
-</html>
+    <a href="
