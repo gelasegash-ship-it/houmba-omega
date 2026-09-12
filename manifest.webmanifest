@@ -1,0 +1,10 @@
+{
+  "name": "NOA H 1",
+  "short_name": "NOA H",
+  "lang": "fr",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#5eead4",
+  "description": "NOA H 1 — intelligence augmentée, mémoire et pilotage."
+}
