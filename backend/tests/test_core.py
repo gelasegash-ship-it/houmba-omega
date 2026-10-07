@@ -24,3 +24,26 @@ def test_risk_gateway_allows_low_risk_live_action():
     gateway = RiskGateway(mode="live", max_action_value_usd=100)
     decision = gateway.evaluate(ActionRequest(action="publish_listing", value_usd=10))
     assert decision.status == "approved"
+
+
+def test_revenue_metrics_track_net_margin():
+    from backend.core.revenue import RevenueEvent, RevenueMetrics
+    metrics = RevenueMetrics()
+    metrics.add(RevenueEvent(source="test", amount=100, kind="sale"))
+    metrics.add(RevenueEvent(source="test", amount=25, kind="cost"))
+    assert metrics.gross == 100
+    assert metrics.costs == 25
+    assert metrics.net == 75
+    assert metrics.margin == 0.75
+
+
+def test_venture_builder_is_bounded():
+    from backend.agents.venture import VentureBuilder
+    opportunity = Opportunity(
+        title="AI sales agent", category="automation", source="test",
+        demand=90, margin=80, speed=90, cost=20,
+        competition=50, risk=20, defensibility=60
+    )
+    experiment = VentureBuilder().design(opportunity)
+    assert experiment.max_budget_usd <= 50
+    assert experiment.success_metric
