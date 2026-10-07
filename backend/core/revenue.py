@@ -1,25 +1,21 @@
-from dataclasses import dataclass
 from datetime import datetime, timezone
 
-@dataclass(frozen=True)
-class RevenueEvent:
+from pydantic import BaseModel, Field
+
+
+class RevenueEvent(BaseModel):
     source: str
-    amount: float
-    currency: str
+    amount: float = Field(ge=0)
+    currency: str = "USD"
     kind: str
-    recorded_at: str
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    @classmethod
-    def create(cls, source: str, amount: float, currency: str, kind: str) -> "RevenueEvent":
-        if amount < 0:
-            raise ValueError("amount must be non-negative")
-        return cls(source, amount, currency, kind, datetime.now(timezone.utc).isoformat())
 
-@dataclass
 class RevenueMetrics:
-    gross: float = 0.0
-    costs: float = 0.0
-    events: int = 0
+    def __init__(self) -> None:
+        self.gross = 0.0
+        self.costs = 0.0
+        self.events = 0
 
     @property
     def net(self) -> float:
