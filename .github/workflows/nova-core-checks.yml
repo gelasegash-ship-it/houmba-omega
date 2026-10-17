@@ -1,0 +1,34 @@
+name: NOVA CORE static checks
+
+on:
+  push:
+    paths:
+      - "NOVA-CORE/**"
+      - "scripts/check_static.py"
+      - ".github/workflows/nova-core-checks.yml"
+  pull_request:
+    paths:
+      - "NOVA-CORE/**"
+      - "scripts/check_static.py"
+      - ".github/workflows/nova-core-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-smoke-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check static page and JavaScript syntax
+        run: python scripts/check_static.py
