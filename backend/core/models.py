@@ -22,7 +22,7 @@ class ActionRequest(BaseModel):
     action: str
     value_usd: float = Field(default=0, ge=0)
     requires_confirmation: bool = True
-    reason: str
+    reason: str = "Action requested by user"
 
 class Decision(BaseModel):
     status: Literal['approved','needs_confirmation','blocked']
