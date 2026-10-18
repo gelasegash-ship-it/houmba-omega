@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07111f">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/nova-192.svg" type="image/svg+xml">
 <meta name="description" content="NOVA CORE — poste de pilotage mobile pour organiser des missions, suivre les tâches et mesurer les résultats réels.">
 <title>NOVA CORE — Houmba H 1</title>
 <style>
@@ -24,6 +26,8 @@
 <section class="card"><h2>💰 Registre financier</h2><label for="sales">Argent réellement encaissé (FCFA)</label><input id="sales" type="number" min="0" max="1000000000" step="1" value="0"><label for="costs">Dépenses réellement payées (FCFA)</label><input id="costs" type="number" min="0" max="1000000000" step="1" value="0"><div class="row"><button id="calc" type="button">Calculer le net</button><button class="secondary" id="exportData" type="button">Exporter mes données</button></div><p id="net" class="metric" aria-live="polite">0 FCFA</p><p class="notice">Ce registre est manuel et local. Il ne se connecte à aucun compte bancaire, portefeuille ou système de paiement.</p></section>
 <section class="card"><h2>🛡️ Sécurité et transparence</h2><div class="task"><span aria-hidden="true">✓</span><span>Ne jamais saisir de clé API ou de mot de passe dans cette page.</span></div><div class="task"><span aria-hidden="true">✓</span><span>Validation humaine pour paiements et actions irréversibles.</span></div><div class="task"><span aria-hidden="true">✓</span><span>Aucun revenu, client ou résultat n’est inventé.</span></div><div class="task"><span aria-hidden="true">✓</span><span>Les connexions cloud exigent une configuration sécurisée distincte.</span></div><p class="notice">Le mode local fonctionne sans compte. Le mode cloud ci-dessus utilise Supabase Auth et le planificateur serveur si la configuration publique est disponible.</p></section>
 </div>
+<section class="card" id="socialCard"><h2>💬 Messagerie sociale (bêta)</h2><p class="muted small">Envoie un message privé à un utilisateur NOVA CORE en utilisant son identifiant UUID Supabase. Les messages ne sont visibles que par l’expéditeur et le destinataire.</p><label for="recipientId">Identifiant UUID du destinataire</label><input id="recipientId" maxlength="36" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><label for="socialMessage">Message</label><textarea id="socialMessage" rows="3" maxlength="4000" placeholder="Écris un message respectueux…"></textarea><div class="row"><button id="sendSocialMessage" type="button">Envoyer le message</button><button id="refreshSocialMessages" class="secondary" type="button">Actualiser la boîte</button></div><div id="socialOutput" class="output" style="margin-top:12px" aria-live="polite">Connecte-toi pour utiliser la messagerie.</div></section>
+<section class="card" id="paymentsCard"><h2>💳 Demandes de paiement (bêta)</h2><p class="notice">Cette version crée uniquement une demande enregistrée. Aucun argent n’est débité, transféré ou reçu. Un prestataire de paiement et ses webhooks vérifiés doivent être configurés avant toute transaction réelle.</p><label for="paymentAmount">Montant demandé (FCFA)</label><input id="paymentAmount" type="number" min="1" max="100000000" step="1" value="2000"><label for="paymentPurpose">Motif</label><input id="paymentPurpose" maxlength="500" placeholder="Ex. Création de trois visuels"><button id="createPaymentIntent" type="button">Enregistrer une demande</button><div id="paymentOutput" class="output" style="margin-top:12px" aria-live="polite">Aucun paiement réel n’est activé.</div></section>
 <footer class="footer">NOVA CORE · Houmba H 1 · Version mobile avec mode local et connexion cloud expérimentale. Les tâches et finances restent locales dans cette version.</footer>
 </main>
 <script>
@@ -84,7 +88,37 @@ $('cloudSync').addEventListener('click',async()=>{
  finally{const {data:{session}}=await client.auth.getSession();btn.disabled=!session;}
 });
 \n$('cloudPlan').addEventListener('click',async()=>{const goal=$('cloudGoal').value.trim();if(goal.length<3){$('cloudOutput').textContent='Décris un objectif d’au moins 3 caractères.';return;}$('cloudPlan').disabled=true;$('cloudOutput').textContent='Préparation du plan…';try{const {data:{session}}=await client.auth.getSession();if(!session)throw new Error('Connecte-toi avant de demander un plan.');const {data,error}=await client.functions.invoke('nova-plan',{body:{goal,constraints:$('cloudConstraints').value}});if(error)throw error;$('cloudOutput').textContent='MODE : '+(data.mode||'inconnu')+'\nIA générative connectée : '+(data.connected_model?'oui':'non')+'\n\nOBJECTIF\n'+(data.goal||goal)+'\n\nÉTAPES\n'+(data.plan||[]).map(p=>p.step+'. '+p.title+' — '+p.detail+(p.approval_required?' [validation requise]':'')).join('\n')+'\n\n'+(data.notice||'');}catch(e){$('cloudOutput').textContent='Erreur : '+(e.message||'impossible de contacter le service');}finally{const {data:{session}}=await client.auth.getSession();$('cloudPlan').disabled=!session;}});
+$('sendSocialMessage').addEventListener('click',async()=>{
+ const recipient=$('recipientId').value.trim(),body=$('socialMessage').value.trim();
+ if(!recipient||!body){$('socialOutput').textContent='Renseigne le destinataire et le message.';return;}
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(recipient)){ $('socialOutput').textContent='Identifiant UUID invalide.';return;}
+ $('sendSocialMessage').disabled=true;
+ try{const {data:{session}}=await client.auth.getSession();if(!session)throw new Error('Connecte-toi avant d’envoyer un message.');
+ const {error}=await client.from('nova_messages').insert({sender_id:session.user.id,recipient_id:recipient,body});
+ if(error)throw error;$('socialMessage').value='';$('socialOutput').textContent='Message enregistré et transmis au compte destinataire.';await loadSocialMessages();
+ }catch(e){$('socialOutput').textContent='Envoi impossible : '+(e.message||'erreur inconnue')+'. Vérifie que la migration nova_social_payments est appliquée.';}
+ finally{$('sendSocialMessage').disabled=false;}
+});
+async function loadSocialMessages(){
+ try{const {data:{session}}=await client.auth.getSession();if(!session)throw new Error('Connecte-toi.');
+ const {data,error}=await client.from('nova_messages').select('id,sender_id,recipient_id,body,created_at,read_at').or('sender_id.eq.'+session.user.id+',recipient_id.eq.'+session.user.id).order('created_at',{ascending:false}).limit(50);
+ if(error)throw error;
+ $('socialOutput').textContent=(data||[]).map(m=>(m.sender_id===session.user.id?'Envoyé':'Reçu')+' · '+new Date(m.created_at).toLocaleString('fr-FR')+'\n'+m.body).join('\n\n')||'Aucun message pour le moment.';
+ }catch(e){$('socialOutput').textContent='Boîte indisponible : '+(e.message||'erreur inconnue')+'. Applique la migration sociale.';}
+}
+$('refreshSocialMessages').addEventListener('click',loadSocialMessages);
+$('createPaymentIntent').addEventListener('click',async()=>{
+ const amount=Number($('paymentAmount').value),purpose=$('paymentPurpose').value.trim();
+ if(!Number.isSafeInteger(amount)||amount<1||amount>100000000||!purpose){$('paymentOutput').textContent='Saisis un montant entier positif et un motif.';return;}
+ $('createPaymentIntent').disabled=true;
+ try{const {data:{session}}=await client.auth.getSession();if(!session)throw new Error('Connecte-toi avant de créer une demande.');
+ const {data,error}=await client.from('nova_payment_intents').insert({user_id:session.user.id,amount_minor:amount,currency:'XAF',purpose,provider:'unconfigured',status:'pending_provider'}).select('id,amount_minor,currency,purpose,status,created_at').single();
+ if(error)throw error;$('paymentOutput').textContent='Demande enregistrée (pas un paiement réel).\nRéférence : '+data.id+'\nMontant : '+data.amount_minor.toLocaleString('fr-FR')+' '+data.currency+'\nMotif : '+data.purpose+'\nStatut : prestataire non configuré.';
+ }catch(e){$('paymentOutput').textContent='Impossible de créer la demande : '+(e.message||'erreur inconnue')+'. Applique la migration sociale/paiements.';}
+ finally{$('createPaymentIntent').disabled=false;}
+});
 client.auth.onAuthStateChange((_event,session)=>renderSession(session));
 client.auth.getSession().then(({data,error})=>{if(error)status('Session indisponible : '+error.message,true);else renderSession(data.session);});
 })();
-</script>\n</body></html>
+</script>\n<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}</script>
+</body></html>
