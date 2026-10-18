@@ -34,3 +34,12 @@ Sans `OPENAI_API_KEY`, le planificateur renvoie explicitement un plan de base et
 - CI : https://github.com/gelasegash-ship-it/houmba-omega/actions
 - Dashboard : https://github.com/gelasegash-ship-it/houmba-omega/blob/main/NOVA-CORE/index.html
 - Fonction : https://github.com/gelasegash-ship-it/houmba-omega/blob/main/supabase/functions/nova-plan/index.ts
+
+
+## Added in October 2026
+
+- **Task sync:** authenticated users can import cloud task states on a first sync when no local task state exists, then upload local task changes. Simultaneous multi-device conflict resolution is not implemented.
+- **Social messaging beta:** authenticated direct messages are stored in `public.nova_messages`; RLS restricts reading to sender/recipient. Apply the social/payments migration. Recipient UUIDs are required in the current basic UI.
+- **Payment-intent beta:** `public.nova_payment_intents` records requests only. No real charge, transfer, wallet, withdrawal, or refund is executed. A provider account, server-side secrets, verified webhook and reconciliation flow are required before enabling real money movement.
+- **Android install:** the PWA manifest, icons and service worker allow installation from a compatible Android browser when served over HTTPS. This is not yet a signed APK/AAB or Play Store release.
+- **AI planner:** configure `OPENAI_API_KEY` as a Supabase Edge Function secret to enable model-backed planning. Never put this secret in the browser.
