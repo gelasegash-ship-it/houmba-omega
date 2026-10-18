@@ -1,37 +1,34 @@
-# Deployment and integration status
+# NOVA CORE — Integration status
 
-## What is now in the repository
-- `NOVA-CORE/index.html`: mobile-first dashboard with task progress, local browser persistence, local action-plan generator, client-message draft, manual revenue/cost calculation and JSON export.
-- `NOVA-CORE/README.md`: product scope and roadmap.
-- `NOVA-CORE/AGENT_SPEC.md`: agent orchestration and safety requirements.
-- `NOVA-CORE/QA_CHECKLIST.md`: manual mobile/desktop, functionality and production-security checks.
-- `supabase/migrations/202610170001_nova_core_foundation.sql`: private user-owned mission/task schema with row-level security (RLS), committed and applied to the live database on 2026-10-18.
-- `supabase/functions/nova-plan/index.ts`: authenticated planning baseline; no live model call.
-- `vercel.json`: baseline security headers for a future deployment.
-- `.github/workflows/nova-core-checks.yml` and `scripts/check_static.py`: static smoke check automation.
+## Live Supabase
+- Project: ALPHA TECH (`mbrxsitcnlmwlpmdwxhf`), region `eu-west-1`.
+- Current project status: ACTIVE_HEALTHY.
+- Tables verified: `public.nova_missions` and `public.nova_tasks`.
+- Row-level security is enabled on both tables.
+- Applied migrations confirmed by Supabase history: `nova_core_foundation`, `nova_tasks_mission_fk_index`.
+- Security advisor returned no lints at the last check.
+- Performance advisor reports only unused indexes while the tables have no data; these are informational.
 
-## Supabase ALPHA TECH — verified state
-- Project ref: `mbrxsitcnlmwlpmdwxhf`, region `eu-west-1`, organization `ALPHA TECH`.
-- Project restore was requested successfully on 2026-10-17.
-- Project status is now `ACTIVE_HEALTHY`; the database is accepting connections.
-- Edge Function `nova-plan` was deployed successfully, version 1, with JWT verification enabled.
-- Migration `nova_core_foundation` was applied successfully; Supabase migration history confirms version `20261018043540`.
-- No provider API key or other secret was added to the repository.
-- Billing plan and the account's invoice/usage page were not available through the connected project metadata. Supabase docs state paused projects incur no compute charges; active compute may incur usage-based charges depending on the organization plan and compute size. Confirm the ALPHA TECH billing plan and current usage in the Supabase dashboard before leaving the project running.
+## Edge Function
+- `nova-plan` is ACTIVE with JWT verification enabled.
+- Current behavior is a safe planning baseline and explicitly returns `connected_model: false`.
+- No external LLM provider key has been installed; do not describe this as a fully connected AI agent.
+- Browser client should call the function only after authentication.
 
-## Verified limitations
-- The dashboard's plan and message generators are local templates, not a connected AI model.
-- Task and finance data are stored in the browser on the current device; there is no cloud sync or user authentication yet.
-- No bank, mobile-money wallet, payment processor, prospecting channel or revenue source is connected.
-- Vercel deployment has not been verified. A repository file is not proof of a live deployment.
+## Repository interface
+- The local-first dashboard is in `NOVA-CORE/index.html`.
+- It includes task checklists, local persistence, a local plan template, customer outreach draft, manual finance register and JSON export.
+- A direct GitHub update attempt to add the Supabase authentication/cloud-sync module was blocked by a platform security control and was not committed. Therefore, do not claim that login/cloud sync has been integrated into the dashboard yet.
+- The Supabase publishable key is public by design; never embed a service-role key, database password, or model-provider secret in frontend files.
 
-## Required before production
-1. Confirm the ALPHA TECH plan and usage in billing settings; monitor spend if the project remains active.
-2. Verify the mission/task tables and RLS behavior with authenticated test accounts; migration history confirms the DDL ran, but a full authenticated isolation test remains outstanding.
-3. Add authentication, cloud persistence, and account recovery.
-4. Keep JWT verification enabled. Add a model-provider secret only through the Supabase server-side secrets manager, then implement provider calls, validation, rate limits and usage/cost limits.
-5. Connect Vercel, set only the required public client configuration, deploy and verify the actual URL.
-6. Complete accessibility, privacy, backup, security and mobile-device testing.
+## Remaining production work
+1. Integrate Supabase Auth in the dashboard and test sign-up/sign-in/session restoration.
+2. Replace local-only persistence with authenticated cloud sync and test cross-user isolation.
+3. Configure a server-side model provider secret in Supabase Edge Function secrets, then update `nova-plan` to call the model with strict timeouts, input/output limits and usage caps.
+4. Test `nova-plan` with an authenticated session; do not disable JWT verification.
+5. Verify GitHub Pages workflow succeeds and test the published site on Android.
+6. Review billing/usage for the active Supabase project before leaving it running.
+7. Add account recovery, privacy/retention documentation, backups, accessibility tests, abuse/rate limits and monitoring.
 
-## Release rule
-Do not describe this project as a production-ready autonomous AI, a live service, or a source of guaranteed income until those checks pass. The present version is a useful local prototype plus a deployed safe-planning Edge Function.
+## Honest release status
+The backend schema and baseline planning function are live. The dashboard remains local-first. Cloud sync, real model inference, end-to-end auth tests and verified public release are not yet complete. Revenue generation is not guaranteed and no payment provider is connected.
