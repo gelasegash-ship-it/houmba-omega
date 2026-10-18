@@ -66,7 +66,7 @@ $('signIn').addEventListener('click',()=>auth('signin'));$('signUp').addEventLis
 $('signOut').addEventListener('click',async()=>{const {error}=await client.auth.signOut();if(error){status('Déconnexion impossible : '+error.message,true);return;}renderSession(null);});
 
 $('cloudSync').addEventListener('click',async()=>{
- const btn=$('cloudSync');btn.disabled=true;$('cloudOutput').textContent='Synchronisation sécurisée des tâches…';
+ const btn=$('cloudSync');btn.disabled=true;$('cloudOutput').textContent='Synchronisation bidirectionnelle…';
  try{
   const {data:{session}}=await client.auth.getSession();if(!session)throw new Error('Connecte-toi avant la synchronisation.');
   const userId=session.user.id;
@@ -75,19 +75,29 @@ $('cloudSync').addEventListener('click',async()=>{
   let mission=missions&&missions[0];
   if(!mission){const result=await client.from('nova_missions').insert({user_id:userId,title:'Mission de lancement NOVA CORE',goal:'Obtenir mon premier client payant',status:'active',currency:'XAF',budget_cents:0}).select('id,title,goal,status').single();if(result.error)throw result.error;mission=result.data;}
   const boxes=[...document.querySelectorAll('[data-task]')];
+  const localState=(()=>{try{return JSON.parse(localStorage.getItem('nova-core-v1')||'{}')}catch(_){return {}}})();
+  const localHasTasks=Boolean(localState.tasks&&Object.keys(localState.tasks).length);
+  const {data:cloudTasks,error:readError}=await client.from('nova_tasks').select('id,title,status,updated_at').eq('user_id',userId).eq('mission_id',mission.id);
+  if(readError)throw readError;
+  let imported=0,uploaded=0;
   for(const box of boxes){
    const label=document.querySelector('label[for="'+box.id+'"]')?.textContent||('Tâche '+box.id);
-   const desired=box.checked?'completed':'planned';
-   const existing=await client.from('nova_tasks').select('id,status').eq('user_id',userId).eq('mission_id',mission.id).eq('title',label).maybeSingle();
-   if(existing.error)throw existing.error;
-   if(existing.data){const upd=await client.from('nova_tasks').update({status:desired}).eq('id',existing.data.id).eq('user_id',userId);if(upd.error)throw upd.error;}
-   else {const ins=await client.from('nova_tasks').insert({mission_id:mission.id,user_id:userId,title:label,status:desired,risk_level:'low',requires_approval:box.id==='t3'});if(ins.error)throw ins.error;}
+   let remote=(cloudTasks||[]).find(t=>t.title===label);
+   if(remote&&!localHasTasks){box.checked=remote.status==='completed';imported++;}
+   else{
+    const desired=box.checked?'completed':'planned';
+    if(remote){if(remote.status!==desired){const upd=await client.from('nova_tasks').update({status:desired}).eq('id',remote.id).eq('user_id',userId);if(upd.error)throw upd.error;uploaded++;}}
+    else{const ins=await client.from('nova_tasks').insert({mission_id:mission.id,user_id:userId,title:label,status:desired,risk_level:'low',requires_approval:box.id==='t3'}).select('id,title,status,updated_at').single();if(ins.error)throw ins.error;cloudTasks.push(ins.data);uploaded++;}
+   }
   }
-  $('cloudOutput').textContent='Synchronisation terminée. Mission : '+mission.title+'\nTâches synchronisées : '+boxes.length+'\nCompte : '+(session.user.email||'authentifié')+'\n\nLes tâches sont maintenant enregistrées dans Supabase pour ce compte. Le tableau de bord n’importe pas encore automatiquement les modifications cloud vers un autre appareil; utilise ce bouton pour envoyer l’état local.';
- }catch(e){$('cloudOutput').textContent='Synchronisation impossible : '+(e.message||'erreur inconnue')+'\nVérifie que la migration nova_core_foundation est appliquée et que les politiques RLS sont actives.';}
+  const tasks={};boxes.forEach(b=>tasks[b.id]=b.checked);
+  try{const current=JSON.parse(localStorage.getItem('nova-core-v1')||'{}');localStorage.setItem('nova-core-v1',JSON.stringify({...current,tasks}));}catch(_){}
+  renderTasks();
+  $('cloudOutput').textContent='Synchronisation terminée.\nMission : '+mission.title+'\nImportées depuis le cloud : '+imported+'\nÉcrites vers le cloud : '+uploaded+'\nTotal local : '+boxes.length+' tâches.\n\nAu premier passage, si aucune tâche locale n’existe, les états cloud sont importés. Ensuite, l’état local est envoyé au cloud. La résolution des modifications simultanées sur plusieurs appareils reste à ajouter.';
+ }catch(e){$('cloudOutput').textContent='Synchronisation impossible : '+(e.message||'erreur inconnue')+'\nVérifie que les migrations nova_core_foundation sont appliquées et que les politiques RLS sont actives.';}
  finally{const {data:{session}}=await client.auth.getSession();btn.disabled=!session;}
 });
-\n$('cloudPlan').addEventListener('click',async()=>{const goal=$('cloudGoal').value.trim();if(goal.length<3){$('cloudOutput').textContent='Décris un objectif d’au moins 3 caractères.';return;}$('cloudPlan').disabled=true;$('cloudOutput').textContent='Préparation du plan…';try{const {data:{session}}=await client.auth.getSession();if(!session)throw new Error('Connecte-toi avant de demander un plan.');const {data,error}=await client.functions.invoke('nova-plan',{body:{goal,constraints:$('cloudConstraints').value}});if(error)throw error;$('cloudOutput').textContent='MODE : '+(data.mode||'inconnu')+'\nIA générative connectée : '+(data.connected_model?'oui':'non')+'\n\nOBJECTIF\n'+(data.goal||goal)+'\n\nÉTAPES\n'+(data.plan||[]).map(p=>p.step+'. '+p.title+' — '+p.detail+(p.approval_required?' [validation requise]':'')).join('\n')+'\n\n'+(data.notice||'');}catch(e){$('cloudOutput').textContent='Erreur : '+(e.message||'impossible de contacter le service');}finally{const {data:{session}}=await client.auth.getSession();$('cloudPlan').disabled=!session;}});
+$('cloudPlan').addEventListener('click',async()=>{const goal=$('cloudGoal').value.trim();if(goal.length<3){$('cloudOutput').textContent='Décris un objectif d’au moins 3 caractères.';return;}$('cloudPlan').disabled=true;$('cloudOutput').textContent='Préparation du plan…';try{const {data:{session}}=await client.auth.getSession();if(!session)throw new Error('Connecte-toi avant de demander un plan.');const {data,error}=await client.functions.invoke('nova-plan',{body:{goal,constraints:$('cloudConstraints').value}});if(error)throw error;$('cloudOutput').textContent='MODE : '+(data.mode||'inconnu')+'\nIA générative connectée : '+(data.connected_model?'oui':'non')+'\n\nOBJECTIF\n'+(data.goal||goal)+'\n\nÉTAPES\n'+(data.plan||[]).map(p=>p.step+'. '+p.title+' — '+p.detail+(p.approval_required?' [validation requise]':'')).join('\n')+'\n\n'+(data.notice||'');}catch(e){$('cloudOutput').textContent='Erreur : '+(e.message||'impossible de contacter le service');}finally{const {data:{session}}=await client.auth.getSession();$('cloudPlan').disabled=!session;}});
 $('sendSocialMessage').addEventListener('click',async()=>{
  const recipient=$('recipientId').value.trim(),body=$('socialMessage').value.trim();
  if(!recipient||!body){$('socialOutput').textContent='Renseigne le destinataire et le message.';return;}
